@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BYM — Your Boarding Pass</title>
+<meta name="description" content="Generate your own personal BYM boarding pass — a keepsake for being part of the journey from the start.">
+<meta name="robots" content="index, follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--black:#08070a;--gold:#d4af37;--gold-bright:#f0c862;--gold-deep:#a9852d;--ivory:#f7f6ef;--muted:#a89f8f;--accent2:#7ea3c9;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-padding-top:70px;}
+body{background:linear-gradient(180deg,#08070a 0%,#0c0f14 30%,#10151c 60%,#08070a 100%);color:var(--ivory);font-family:'Montserrat',-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.75;padding-top:calc(60px + env(safe-area-inset-top,0px));padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));-webkit-font-smoothing:antialiased;}
+.wrap{max-width:640px;margin:0 auto;padding:0 24px;text-align:center;}
+.overline{display:block;font-size:11px;letter-spacing:0.2em;color:var(--accent2);margin-bottom:12px;}
+h1{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(22px,5.5vw,30px);letter-spacing:0.1em;color:var(--gold-bright);margin-bottom:14px;}
+p{font-size:15px;color:var(--muted);max-width:52ch;margin:0 auto 26px;}
+.pass-form{display:flex;flex-direction:column;gap:12px;max-width:360px;margin:0 auto 30px;}
+.pass-form input{background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.35);border-radius:3px;padding:13px 14px;color:var(--ivory);font-family:'Montserrat',sans-serif;font-size:14px;text-align:center;}
+.pass-form input::placeholder{color:var(--muted);}
+.pass-form input:focus{outline:1px solid var(--gold);}
+.btn{display:inline-block;padding:14px 34px;border-radius:2px;border:1px solid var(--gold);background:var(--black);color:var(--gold-bright);font-size:13px;letter-spacing:0.1em;font-weight:500;cursor:pointer;transition:background 0.2s,color 0.2s;}
+.btn:hover{background:var(--gold);color:var(--black);}
+canvas{width:100%;max-width:640px;height:auto;border-radius:6px;margin:0 auto;display:block;}
+.pass-wrap{display:none;}
+.pass-wrap.show{display:block;}
+.download-row{margin-top:22px;}
+.trust-line{font-size:11px;color:var(--muted);margin-top:10px;}
+.member-id-line{font-size:13px;color:var(--gold-bright);margin-top:14px;letter-spacing:0.06em;}
+.back-link{display:inline-block;margin-top:40px;font-size:12px;letter-spacing:0.08em;color:var(--muted);text-decoration:none;}
+.back-link:hover{color:var(--gold-bright);}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <span class="overline">A KEEPSAKE &amp; A MEMBER ID</span>
+ <h1>YOUR BOARDING PASS</h1>
+ <p>A personal memento for being part of this from the beginning. Generating one also gives you a unique Member ID and a real scannable QR code — the same ID that may later be used to consider founding members for MBY City.</p>
+
+ <div id="qrHolder" style="display:none;"></div>
+ <form class="pass-form" id="passForm">
+  <input type="text" id="passName" placeholder="Your name" maxlength="26" required>
+  <button type="submit" class="btn">GENERATE MY PASS</button>
+ </form>
+
+ <div class="pass-wrap" id="passWrap">
+  <canvas id="passCanvas" width="1200" height="480"></canvas>
+  <div class="download-row">
+   <button class="btn" id="downloadBtn">DOWNLOAD MY BOARDING PASS</button>
+   <p class="trust-line">Saved as an image, right to your device — nothing is stored anywhere else.</p>
+   <p class="member-id-line" id="memberIdLine"></p>
+  </div>
+ </div>
+
+ <footer style="padding:32px 24px 10px;text-align:center;"><div style="margin-bottom:14px;font-size:11px;letter-spacing:0.06em;"><a href="https://claude.ai/artifact/LV1Mm6QF1pSZ2j2P7JdmHc" style="color:var(--muted);">HOME</a> &middot; <a href="https://claude.ai/artifact/9MeTSTqkin8Z13JWPbGQpH" target="_blank" rel="noopener noreferrer" style="color:var(--muted);">STORY</a> &middot; <a href="https://claude.ai/artifact/RQpwo8bSxj2W1Lh3JjScKu" target="_blank" rel="noopener noreferrer" style="color:var(--muted);">MBY</a> &middot; <a href="https://claude.ai/artifact/5XSTr2PPz6SikLbxKKfkL1" target="_blank" rel="noopener noreferrer" style="color:var(--muted);">ALL LINKS</a></div></footer>
+ <a class="back-link" href="https://claude.ai/artifact/9MeTSTqkin8Z13JWPbGQpH" target="_blank" rel="noopener noreferrer">&larr; BACK TO THE STORY</a>
+</div>
+
+<script>
+const canvas = document.getElementById('passCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GOLD = '#d4af37', GOLD_BRIGHT = '#f0c862', IVORY = '#f7f6ef', MUTED = '#a89f8f';
+
+function hashStr(str){
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) + str.charCodeAt(i); h = h & 0xffffffff; }
+  return Math.abs(h);
+}
+
+function memberId(name){
+  const letters = (name.replace(/[^a-zA-Z]/g,'').toUpperCase() + 'BYM').slice(0,3);
+  const h = hashStr(name.toLowerCase().trim() + navigator.userAgent + Date.now());
+  const num = (h % 9000) + 1000;
+  return 'BYM-' + letters + '-' + num;
+}
+
+function drawBarcode(ctx, id, x, y, w, h){
+  const seed = hashStr(id);
+  let bx = x;
+  let i = 0;
+  ctx.fillStyle = GOLD;
+  while (bx < x + w){
+    const bit = (seed >> (i % 24)) & 1;
+    const barW = bit ? 3 : 1.4;
+    ctx.fillRect(bx, y, barW, h);
+    bx += barW + 2;
+    i++;
+  }
+}
+
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r);
+  c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);
+  c.arcTo(x,y,x+w,y,r);
+  c.closePath();
+}
+
+async function drawPass(name){
+  await document.fonts.load('700 32px "Playfair Display"');
+  await document.fonts.load('600 14px "Montserrat"');
+  await document.fonts.ready;
+
+  const stubX = 920;
+  ctx.clearRect(0,0,W,H);
+
+  const bg = ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#0c0f14'); bg.addColorStop(1,'#08070a');
+  ctx.fillStyle = bg;
+  roundRect(ctx,4,4,W-8,H-8,14); ctx.fill();
+
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 1.4;
+  roundRect(ctx,4,4,W-8,H-8,14); ctx.stroke();
+
+  ctx.setLineDash([6,7]);
+  ctx.strokeStyle = 'rgba(212,175,55,0.5)';
+  ctx.beginPath(); ctx.moveTo(stubX,20); ctx.lineTo(stubX,H-20); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = GOLD_BRIGHT;
+  ctx.font = '700 34px "Playfair Display", Georgia, serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('BYM', 44, 66);
+  ctx.fillStyle = MUTED;
+  ctx.font = '500 11px "Montserrat", sans-serif';
+  ctx.fillText('M O R E   T H A N   A   D R E A M', 44, 86);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = GOLD;
+  ctx.font = '600 12px "Montserrat", sans-serif';
+  ctx.fillText('B O A R D I N G   P A S S', stubX - 40, 56);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MUTED;
+  ctx.font = '600 11px "Montserrat", sans-serif';
+  ctx.fillText('PASSENGER', 44, 150);
+  ctx.fillStyle = IVORY;
+  ctx.font = '700 30px "Playfair Display", Georgia, serif';
+  ctx.fillText(name.toUpperCase(), 44, 186);
+
+  const fy = 250;
+  ctx.fillStyle = MUTED; ctx.font = '600 11px "Montserrat", sans-serif';
+  ctx.fillText('FROM', 44, fy);
+  ctx.fillStyle = IVORY; ctx.font = '600 18px "Montserrat", sans-serif';
+  ctx.fillText('WHEREVER YOU ARE', 44, fy+26);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = MUTED; ctx.font = '600 11px "Montserrat", sans-serif';
+  ctx.fillText('TO', stubX-40, fy);
+  ctx.fillStyle = GOLD_BRIGHT; ctx.font = '600 18px "Montserrat", sans-serif';
+  ctx.fillText('THE JOURNEY', stubX-40, fy+26);
+
+  ctx.save();
+  ctx.translate((44 + (stubX-40))/2, fy+14);
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 1.6; ctx.setLineDash([3,5]);
+  ctx.beginPath(); ctx.moveTo(-140,0); ctx.lineTo(140,0); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = GOLD_BRIGHT;
+  ctx.beginPath();
+  ctx.moveTo(10,-7); ctx.lineTo(-14,0); ctx.lineTo(10,7); ctx.lineTo(4,0); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  const by = 340;
+  const mid = memberId(name);
+  const cols = [
+    ['CLASS','FOUNDING SUPPORTER'],
+    ['DATE', new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()],
+    ['MEMBER ID', mid]
+  ];
+  const colW = (stubX-88)/3;
+  cols.forEach((c,i)=>{
+    const x = 44 + i*colW;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = MUTED; ctx.font = '600 10px "Montserrat", sans-serif';
+    ctx.fillText(c[0], x, by);
+    ctx.fillStyle = IVORY; ctx.font = '600 15px "Montserrat", sans-serif';
+    ctx.fillText(c[1], x, by+22);
+  });
+
+  ctx.strokeStyle = 'rgba(212,175,55,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(44,by+40); ctx.lineTo(stubX-40,by+40); ctx.stroke();
+
+  ctx.fillStyle = MUTED; ctx.font = 'italic 13px "Playfair Display", Georgia, serif';
+  ctx.fillText('Thank you for being part of this, from the very beginning.', 44, by+68);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = GOLD_BRIGHT; ctx.font = '700 22px "Playfair Display", Georgia, serif';
+  ctx.fillText('BYM', (stubX+W-4)/2, 66);
+  ctx.fillStyle = IVORY; ctx.font = '600 14px "Montserrat", sans-serif';
+  ctx.fillText(name.toUpperCase().slice(0,16), (stubX+W-4)/2, 150);
+  ctx.fillStyle = MUTED; ctx.font = '11px "Montserrat", sans-serif';
+  ctx.fillText('FOUNDING SUPPORTER', (stubX+W-4)/2, 172);
+  ctx.fillStyle = GOLD_BRIGHT; ctx.font = '600 12px "Montserrat", sans-serif';
+  ctx.fillText(mid, (stubX+W-4)/2, 195);
+
+  // real scannable QR code
+  const qrHolder = document.getElementById('qrHolder');
+  qrHolder.innerHTML = '';
+  const qrText = 'https://claude.ai/artifact/LV1Mm6QF1pSZ2j2P7JdmHc?m=' + encodeURIComponent(mid);
+  new QRCode(qrHolder, { text: qrText, width: 200, height: 200, colorDark: '#08070a', colorLight: '#f0c862', correctLevel: QRCode.CorrectLevel.M });
+  const qrCanvas = qrHolder.querySelector('canvas');
+  const qrSize = 84, qrX = (stubX+W-4)/2 - qrSize/2, qrY = 210;
+  if (qrCanvas) {
+    ctx.fillStyle = '#f0c862';
+    ctx.fillRect(qrX-4, qrY-4, qrSize+8, qrSize+8);
+    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+  }
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MUTED; ctx.font = '9px "Montserrat", sans-serif';
+  ctx.fillText('S C A N   M E', (stubX+W-4)/2, qrY+qrSize+22);
+
+  drawBarcode(ctx, mid, stubX+30, 380, W-stubX-60, 40);
+  return mid;
+}
+
+document.getElementById('passForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('passName').value.trim() || 'Friend of BYM';
+  const mid = await drawPass(name);
+  document.getElementById('passWrap').classList.add('show');
+  document.getElementById('memberIdLine').textContent = 'Your Member ID: ' + mid + ' — worth saving for later.';
+  document.getElementById('passWrap').scrollIntoView({behavior:'smooth', block:'center'});
+});
+
+document.getElementById('downloadBtn').addEventListener('click', async () => {
+  const downloads = await claude.use('downloads');
+  canvas.toBlob(async (blob) => {
+    if (!downloads) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'bym-boarding-pass.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      return;
+    }
+    try {
+      await downloads.save({ filename: 'bym-boarding-pass.png', data: blob });
+    } catch (err) {}
+  }, 'image/png');
+});
+</script>
+</body>
+</html>
