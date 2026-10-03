@@ -1,0 +1,12 @@
+{
+  "name": "bym-club",
+  "version": "1.0.0",
+  "description": "BYM Club Project",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
